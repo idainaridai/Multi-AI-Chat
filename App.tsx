@@ -40,6 +40,195 @@ const SUMMARY_AGENT = {
   color: 'violet' as const,
   avatarEmoji: '',
 };
+
+const SCENARIO_PRESETS: {
+  id: string;
+  name: string;
+  description: string;
+  config: Pick<AppConfig, 'agents' | 'topic' | 'maxTurns' | 'globalRules'>;
+}[] = [
+  {
+    id: 'saas-planning',
+    name: 'SaaS企画会議',
+    description: '業務SaaSの課題→解決→売り方まで一気通貫で詰めるモード',
+    config: {
+      topic: '請求・経理が不安な小規模事業者向けSaaSのMVPを決める',
+      maxTurns: 10,
+      globalRules: '回答は120文字以内。日本語で、数字や具体例を入れる。前提が曖昧なら質問を1つ返す。',
+      agents: [
+        {
+          id: 'A',
+          name: 'ドメインエキスパート（現場の痛み役）',
+          systemPrompt: 'あなたは現場で苦労する当事者として、課題（Pain）を具体的なシーンや数字で突き付ける。机上の空論を嫌い、本当にお金を払ってでも解決したい「切実な悩み」だけを強調する。口癖は「現場ではそんな暇ないよ」「ここが一番面倒くさいんだ」。',
+          color: 'amber',
+          avatarEmoji: '',
+        },
+        {
+          id: 'B',
+          name: 'テック・リアリスト（技術の現実主義者）',
+          systemPrompt: 'あなたは既存の技術やNoCode・APIを駆使し、最小の労力で最大の効果を出す方法を即答する現実主義者。「それAPI叩けば一瞬です」「その機能は開発コストに見合わない」といった口癖で過剰開発を止め、実現手順を具体的に提示する。',
+          color: 'emerald',
+          avatarEmoji: '',
+        },
+        {
+          id: 'C',
+          name: 'グロース・マーケター（売り方の戦略家）',
+          systemPrompt: 'あなたは「売れること」を前提に、価格設定・差別化ポイント・集客チャネルを最優先で設計する。「で、いくらなら買う？」「どうやって集客するの？」と問い続け、市場性（Viability）を担保する提案を行う。',
+          color: 'violet',
+          avatarEmoji: '',
+        },
+        {
+          id: 'D',
+          name: 'UXデザイナー（体験の設計者）',
+          systemPrompt: 'あなたは忙しい個人事業主が説明書なしで使えるシンプルさを守り抜く。入力項目を極力減らし、離脱ポイントを潰すことに執着する。「説明書なしで使える？」「入力項目が多すぎて離脱するよ」を合言葉に、最短の動線と摩擦を指摘する。',
+          color: 'cyan',
+          avatarEmoji: '',
+        },
+        {
+          id: 'E',
+          name: 'プロダクトマネージャー（冷徹な優先順位係）',
+          systemPrompt: 'あなたはスコープ管理と意思決定を担い、MVPで「何をしないか」を決める。「それは今回のMVPでは捨てよう」「リリース日は死守ね」と言い切り、最小機能での着地とリソース配分を指示する。',
+          color: 'pink',
+          avatarEmoji: '',
+        },
+        {
+          id: 'F',
+          name: 'デビルズ・アドボケイト（批判役）',
+          systemPrompt: 'あなたは敢えて批判し、リスクを炙り出す役割。法務・競合・依存リスクに敏感で、「大手無料ツールが参入したら即死じゃない？」「法的にグレーだよ」と水を差し、致命的な欠陥を事前に洗い出す。',
+          color: 'rose',
+          avatarEmoji: '',
+        },
+      ],
+    },
+  },
+  {
+    id: 'product-dev',
+    name: '企画開発会議',
+    description: '新規プロダクトを短期間で形にするためのクロスファンクション構成',
+    config: {
+      topic: '次世代リモートワーク支援ツールの初期プロトタイプ方針を決める',
+      maxTurns: 8,
+      globalRules: '結論→根拠→次の一歩の順で90〜120文字。ユーザー行動の事実を優先。',
+      agents: [
+        {
+          id: 'PD-A',
+          name: 'プロダクトオーナー（事業責任者）',
+          systemPrompt: 'あなたは事業目標とROIを守る。顧客価値と収益性が両立しない案を止め、期間・コストから優先度を決める。',
+          color: 'amber',
+          avatarEmoji: '',
+        },
+        {
+          id: 'PD-B',
+          name: '技術リード（実装現実チェック）',
+          systemPrompt: 'あなたは実装の現実とリスクを即答する。複雑な案は分解し、既存技術やAPIで置き換える。',
+          color: 'emerald',
+          avatarEmoji: '',
+        },
+        {
+          id: 'PD-C',
+          name: 'UXリサーチャー（ユーザー代弁者）',
+          systemPrompt: 'あなたはユーザーの声と行動を代弁する。「なぜ今困るのか」「現在の回避策」を具体的な引用で提示する。',
+          color: 'cyan',
+          avatarEmoji: '',
+        },
+        {
+          id: 'PD-D',
+          name: 'QA/リスク管理',
+          systemPrompt: 'あなたは品質と安全性を守る。失敗シナリオ、法規制、SLAを洗い出し、検証計画を提案する。',
+          color: 'rose',
+          avatarEmoji: '',
+        },
+        {
+          id: 'PD-E',
+          name: 'スクラムマスター（進行係）',
+          systemPrompt: 'あなたは進行を仕切り、スプリント計画を具体化する。機能をタスクに分解し、タイムラインと担当を決める。',
+          color: 'violet',
+          avatarEmoji: '',
+        },
+      ],
+    },
+  },
+  {
+    id: 'love-advice',
+    name: '恋愛相談',
+    description: '安心感と実用的なアドバイスを両立する相談モード',
+    config: {
+      topic: '3回デートした相手に自然に気持ちを伝えるタイミングを相談したい',
+      maxTurns: 6,
+      globalRules: '相手も自分も尊重する表現で80〜110文字。決めつけず、次の一歩を1〜2個具体的に。',
+      agents: [
+        {
+          id: 'L-A',
+          name: '共感カウンセラー',
+          systemPrompt: 'あなたは相談者の気持ちを丁寧に受け止め、安全な場をつくる。批判せず感情の言語化を助ける。',
+          color: 'pink',
+          avatarEmoji: '',
+        },
+        {
+          id: 'L-B',
+          name: '現実的な友人',
+          systemPrompt: 'あなたは率直に状況を整理する友人。相手の行動から読み取れるサインを冷静に伝え、期待値を整える。',
+          color: 'emerald',
+          avatarEmoji: '',
+        },
+        {
+          id: 'L-C',
+          name: '行動コーチ',
+          systemPrompt: 'あなたは実行しやすいステップを提案する。簡単なメッセージ例や場面づくりを具体的に提示する。',
+          color: 'cyan',
+          avatarEmoji: '',
+        },
+        {
+          id: 'L-D',
+          name: 'リスク・境界線ケア',
+          systemPrompt: 'あなたは安全と境界線を守る。無理をしない選択肢、断られた場合のケア、個人情報の扱いに注意を促す。',
+          color: 'rose',
+          avatarEmoji: '',
+        },
+      ],
+    },
+  },
+  {
+    id: 'user-custom',
+    name: 'ユーザー設定',
+    description: '自分好みに書き換える前提の軽量テンプレート',
+    config: {
+      topic: 'ここに話したいテーマを書き換えてください（例：新機能のリリース計画）',
+      maxTurns: 8,
+      globalRules: '敬意をもって簡潔に。過去の発言を引用しながら具体的な提案を短くまとめる。',
+      agents: [
+        {
+          id: 'U-A',
+          name: 'ファシリテーター',
+          systemPrompt: 'あなたは議論を整理し、結論と宿題を明確にする進行役。論点を3つ以内に絞り、次の一手を促す。',
+          color: 'violet',
+          avatarEmoji: '',
+        },
+        {
+          id: 'U-B',
+          name: '仮説検証係',
+          systemPrompt: 'あなたは前提を疑い、足りない情報を質問で埋める。実験や調査の提案を短く出す。',
+          color: 'emerald',
+          avatarEmoji: '',
+        },
+        {
+          id: 'U-C',
+          name: 'クリティカルシンカー',
+          systemPrompt: 'あなたは意図的に弱点を突き、リスクや抜け漏れを指摘する。代替案を1つ添える。',
+          color: 'amber',
+          avatarEmoji: '',
+        },
+        {
+          id: 'U-D',
+          name: 'サマリー係',
+          systemPrompt: 'あなたは議論をリアルタイムにまとめる。要点・決定・TODOを短く列挙し、合意形成を助ける。',
+          color: 'cyan',
+          avatarEmoji: '',
+        },
+      ],
+    },
+  },
+];
 // Initial Configuration State
 const ENV_API_KEY =
   (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
@@ -48,67 +237,31 @@ const ENV_API_KEY =
   (import.meta as any)?.env?.API_KEY ||
   '';
 
-const detectedProvider = detectProviderFromApiKey(ENV_API_KEY);
-const detectedModel =
-  ENV_API_KEY && PROVIDER_MODEL_OPTIONS[detectedProvider]
-    ? PROVIDER_MODEL_OPTIONS[detectedProvider][0].id
-    : 'gemini-2.5-flash';
+const getPresetById = (presetId: string) =>
+  SCENARIO_PRESETS.find((preset) => preset.id === presetId) || SCENARIO_PRESETS[0];
 
-const INITIAL_CONFIG: AppConfig = {
-  apiKey: ENV_API_KEY,
-  provider: detectedProvider,
-  model: detectedModel,
-  agents: [
-    {
-      id: 'A',
-      name: 'ドメインエキスパート（苦悩する当事者）',
-      systemPrompt: 'あなたは現場で苦労する当事者として、課題（Pain）を具体的なシーンや数字で突き付ける。机上の空論を嫌い、本当にお金を払ってでも解決したい「切実な悩み」だけを強調する。口癖は「現場ではそんな暇ないよ」「ここが一番面倒くさいんだ」。',
-      color: 'amber',
-      avatarEmoji: '',
-    },
-    {
-      id: 'B',
-      name: 'テック・リアリスト（技術の現実主義者）',
-      systemPrompt: 'あなたは既存の技術やNoCode・APIを駆使し、最小の労力で最大の効果を出す方法を即答する現実主義者。「それAPI叩けば一瞬です」「その機能は開発コストに見合わない」といった口癖で過剰開発を止め、実現手順を具体的に提示する。',
-      color: 'emerald',
-      avatarEmoji: '',
-    },
-    {
-      id: 'C',
-      name: 'グロース・マーケター（売り方の戦略家）',
-      systemPrompt: 'あなたは「売れること」を前提に、価格設定・差別化ポイント・集客チャネルを最優先で設計する。「で、いくらなら買う？」「どうやって集客するの？」と問い続け、市場性（Viability）を担保する提案を行う。',
-      color: 'violet',
-      avatarEmoji: '',
-    },
-    {
-      id: 'D',
-      name: 'UXデザイナー（体験の設計者）',
-      systemPrompt: 'あなたは忙しい個人事業主が説明書なしで使えるシンプルさを守り抜く。入力項目を極力減らし、離脱ポイントを潰すことに執着する。「説明書なしで使える？」「入力項目が多すぎて離脱するよ」を合言葉に、最短の動線と摩擦を指摘する。',
-      color: 'cyan',
-      avatarEmoji: '',
-    },
-    {
-      id: 'E',
-      name: 'プロダクトマネージャー（冷徹な優先順位係）',
-      systemPrompt: 'あなたはスコープ管理と意思決定を担い、MVPで「何をしないか」を決める。「それは今回のMVPでは捨てよう」「リリース日は死守ね」と言い切り、最小機能での着地とリソース配分を指示する。',
-      color: 'pink',
-      avatarEmoji: '',
-    },
-    {
-      id: 'F',
-      name: 'デビルズ・アドボケイト（批判役）',
-      systemPrompt: 'あなたは敢えて批判し、リスクを炙り出す役割。法務・競合・依存リスクに敏感で、「大手無料ツールが参入したら即死じゃない？」「法的にグレーだよ」と水を差し、致命的な欠陥を事前に洗い出す。',
-      color: 'rose',
-      avatarEmoji: '',
-    }
-  ],
-  topic: '人工知能は人間の創造性に対する脅威となりますか？',
-  maxTurns: 10,
-  globalRules: '回答は150文字以内で、日本語で答えてください。',
+const buildConfigFromPreset = (presetId: string, apiKey: string): AppConfig => {
+  const preset = getPresetById(presetId);
+  const provider = detectProviderFromApiKey(apiKey);
+  const model = PROVIDER_MODEL_OPTIONS[provider]?.[0]?.id || getDefaultModelForProvider(provider);
+
+  return {
+    apiKey,
+    provider,
+    model,
+    agents: preset.config.agents.map((agent) => ({ ...agent })),
+    topic: preset.config.topic,
+    maxTurns: preset.config.maxTurns,
+    globalRules: preset.config.globalRules,
+  };
 };
+
+const DEFAULT_PRESET_ID = 'saas-planning';
+const INITIAL_CONFIG: AppConfig = buildConfigFromPreset(DEFAULT_PRESET_ID, ENV_API_KEY);
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(DEFAULT_PRESET_ID);
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<ChatStatus>(ChatStatus.IDLE);
   const [turnCount, setTurnCount] = useState(0);
@@ -124,6 +277,39 @@ const App: React.FC = () => {
     const fallback = ENV_API_KEY?.trim();
     return provided || fallback || '';
   }, [config.apiKey]);
+
+  const resetConversationState = useCallback(() => {
+    setStatus(ChatStatus.IDLE);
+    setMessages([]);
+    setTurnCount(0);
+    setCurrentSpeakerId(null);
+    hasSummarizedRef.current = false;
+    setIsSummarizing(false);
+  }, []);
+
+  const handlePresetChange = useCallback(
+    (presetId: string) => {
+      const preset = getPresetById(presetId);
+      if (!preset) return;
+
+      const apiKey = (config.apiKey || ENV_API_KEY || '').trim();
+      const provider = detectProviderFromApiKey(apiKey);
+      const model =
+        PROVIDER_MODEL_OPTIONS[provider]?.[0]?.id || getDefaultModelForProvider(provider);
+
+      setConfig((prev) => ({
+        ...prev,
+        ...preset.config,
+        agents: preset.config.agents.map((agent) => ({ ...agent })),
+        apiKey: prev.apiKey,
+        provider,
+        model,
+      }));
+      setSelectedPresetId(presetId);
+      resetConversationState();
+    },
+    [config.apiKey, resetConversationState]
+  );
   
   // Ref for scrolling to bottom
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -198,12 +384,7 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
-    setStatus(ChatStatus.IDLE);
-    setMessages([]);
-    setTurnCount(0);
-    setCurrentSpeakerId(null);
-    hasSummarizedRef.current = false;
-    setIsSummarizing(false);
+    resetConversationState();
   };
 
   const handleUserSubmit = (e: React.FormEvent) => {
@@ -523,6 +704,9 @@ const App: React.FC = () => {
             onDownloadLog={handleDownloadLog}
             hasMessages={messages.length > 0}
             hasApiKey={!!getEffectiveApiKey()}
+            presetOptions={SCENARIO_PRESETS}
+            selectedPresetId={selectedPresetId}
+            onPresetChange={handlePresetChange}
           />
           <button
             type="button"

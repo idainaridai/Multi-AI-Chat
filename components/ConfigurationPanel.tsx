@@ -13,6 +13,9 @@ interface ConfigurationPanelProps {
   onDownloadLog: () => void;
   hasMessages: boolean;
   hasApiKey: boolean;
+  presetOptions: { id: string; name: string; description: string }[];
+  selectedPresetId: string;
+  onPresetChange: (presetId: string) => void;
 }
 
 const COLOR_PALETTE: AgentConfig['color'][] = ['cyan', 'pink', 'emerald', 'amber', 'violet', 'rose'];
@@ -27,6 +30,9 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
   onDownloadLog,
   hasMessages,
   hasApiKey,
+  presetOptions,
+  selectedPresetId,
+  onPresetChange,
 }) => {
   const isRunning = status === ChatStatus.ACTIVE;
   const modelOptions = PROVIDER_MODEL_OPTIONS[config.provider] || [];
@@ -110,6 +116,44 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
           <div>
             <h1 className="text-xl font-semibold text-white tracking-tight">Gemini Sim</h1>
             <p className="text-xs text-zinc-400 font-medium">Multi-Agent Dialogue</p>
+          </div>
+        </div>
+
+        {/* Section: Presets */}
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xs font-medium text-zinc-400 uppercase tracking-[0.2em]">Presets</h2>
+            <span className="text-[10px] font-semibold text-white bg-white/10 px-2 py-1 rounded-full border border-white/10 shadow-sm">
+              Default
+            </span>
+          </div>
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-md space-y-2 shadow-lg shadow-black/30">
+            {presetOptions.map((preset) => {
+              const isActive = preset.id === selectedPresetId;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => onPresetChange(preset.id)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-150 ${
+                    isActive
+                      ? 'border-white/60 bg-white/10 text-white shadow-lg shadow-white/10'
+                      : 'border-white/10 hover:border-white/30 text-white/80'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">{preset.name}</span>
+                    {isActive && (
+                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200">
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{preset.description}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
 

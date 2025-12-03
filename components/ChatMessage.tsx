@@ -15,6 +15,7 @@ const colorStyles: Record<string, { bg: string, text: string }> = {
   emerald: { bg: 'bg-gradient-to-br from-emerald-400/80 via-teal-500/80 to-emerald-700/80', text: 'text-white' },
   amber: { bg: 'bg-gradient-to-br from-amber-300/90 via-orange-400/80 to-amber-600/80', text: 'text-slate-900' },
   violet: { bg: 'bg-gradient-to-br from-indigo-400/80 via-violet-500/80 to-indigo-700/80', text: 'text-white' },
+  rose: { bg: 'bg-gradient-to-br from-rose-400/80 via-red-500/80 to-rose-700/80', text: 'text-white' },
 };
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, agent, isLeftAligned }) => {

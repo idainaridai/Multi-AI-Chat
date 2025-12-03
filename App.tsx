@@ -116,6 +116,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'chat' | 'text'>('chat');
   const [userInput, setUserInput] = useState('');
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const hasSummarizedRef = useRef(false);
 
   const getEffectiveApiKey = useCallback(() => {
@@ -182,6 +183,7 @@ const App: React.FC = () => {
     }
 
     addMessage('SYSTEM', `Discussion Started: "${config.topic}"`);
+    setIsConfigOpen(false);
     
     // First agent starts
     if (config.agents.length > 0) {
@@ -490,29 +492,60 @@ const App: React.FC = () => {
   }).join('\n\n');
 
   return (
-    <div className="app-surface flex flex-col md:flex-row h-screen overflow-hidden text-slate-100 font-sans selection:bg-white/30">
+    <div className="app-surface flex flex-col md:flex-row min-h-screen md:h-screen overflow-hidden text-slate-100 font-sans selection:bg-white/30">
       <div className="aurora aurora-one" />
       <div className="aurora aurora-two" />
       <div className="grain-overlay" />
 
       {/* Sidebar Configuration */}
-      <ConfigurationPanel
-        config={config}
-        setConfig={setConfig}
-        status={status}
-        onStart={handleStart}
-        onStop={handleStop}
-        onReset={handleReset}
-        onDownloadLog={handleDownloadLog}
-        hasMessages={messages.length > 0}
-        hasApiKey={!!getEffectiveApiKey()}
-      />
+      <aside
+        className={`md:relative md:block ${isConfigOpen ? 'fixed inset-0 z-40' : 'hidden'} md:w-[360px]`}
+        aria-label="Configuration Panel"
+      >
+        {isConfigOpen && (
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm md:hidden"
+            onClick={() => setIsConfigOpen(false)}
+          />
+        )}
+        <div
+          className={`relative h-full md:h-screen w-full md:w-[360px] ml-auto transform transition-transform duration-300 ${
+            isConfigOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'
+          }`}
+        >
+          <ConfigurationPanel
+            config={config}
+            setConfig={setConfig}
+            status={status}
+            onStart={handleStart}
+            onStop={handleStop}
+            onReset={handleReset}
+            onDownloadLog={handleDownloadLog}
+            hasMessages={messages.length > 0}
+            hasApiKey={!!getEffectiveApiKey()}
+          />
+          <button
+            type="button"
+            onClick={() => setIsConfigOpen(false)}
+            className="md:hidden absolute top-3 right-3 bg-white/10 text-white rounded-full px-3 py-1 text-xs border border-white/20 shadow-lg backdrop-blur"
+          >
+            閉じる
+          </button>
+        </div>
+      </aside>
 
       {/* Main Chat Area */}
       <main className="flex-grow flex flex-col h-full relative">
         {/* Header */}
-        <header className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-white/5 backdrop-blur-xl z-10 shrink-0 sticky top-0 glass-panel">
-          <div className="flex items-center gap-6">
+        <header className="h-16 border-b border-white/10 flex items-center justify-between px-4 md:px-8 bg-white/5 backdrop-blur-xl z-10 shrink-0 sticky top-0 glass-panel">
+          <div className="flex items-center gap-4 md:gap-6">
+            <button
+              type="button"
+              className="md:hidden bg-white text-black rounded-full px-3 py-2 text-xs font-semibold shadow-sm border border-white/40"
+              onClick={() => setIsConfigOpen(true)}
+            >
+              設定を開く
+            </button>
             <div className="flex flex-col">
               <h2 className="text-sm font-semibold text-white tracking-wide">Live Simulation</h2>
               <div className="flex items-center gap-2">
@@ -554,7 +587,7 @@ const App: React.FC = () => {
           <>
             <div 
               ref={chatContainerRef}
-              className="flex-grow overflow-y-auto p-6 md:p-10 space-y-4 relative"
+              className="flex-grow overflow-y-auto p-4 md:p-10 space-y-4 relative"
             >
               <div className="radial-highlight" />
               {messages.length === 0 && (
@@ -602,7 +635,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Input Bar */}
-             <div className="p-4 md:p-6 bg-white/5 backdrop-blur-xl border-t border-white/10 flex justify-center sticky bottom-0 z-20 glass-panel">
+             <div className="p-3 md:p-6 bg-white/5 backdrop-blur-xl border-t border-white/10 flex justify-center sticky bottom-0 z-20 glass-panel">
                <form onSubmit={handleUserSubmit} className="relative w-full max-w-4xl flex items-center gap-2">
                  <input
                    type="text"
@@ -610,12 +643,12 @@ const App: React.FC = () => {
                    onChange={(e) => setUserInput(e.target.value)}
                    placeholder="会話に参加する..."
                    disabled={!config.apiKey}
-                   className="w-full bg-white/5 text-white placeholder-zinc-400 px-5 py-4 rounded-full border border-white/10 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm shadow-lg shadow-black/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                   className="w-full bg-white/5 text-white placeholder-zinc-400 px-4 md:px-5 py-3 md:py-4 rounded-full border border-white/10 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 transition-all text-sm shadow-lg shadow-black/30 disabled:opacity-50 disabled:cursor-not-allowed"
                  />
                  <button
                    type="submit"
                    disabled={!userInput.trim() || !config.apiKey}
-                   className="absolute right-2 p-2.5 bg-white text-black rounded-full hover:bg-zinc-200 disabled:opacity-0 transition-all disabled:scale-90 shadow-lg shadow-white/20"
+                   className="absolute right-1.5 md:right-2 p-2 md:p-2.5 bg-white text-black rounded-full hover:bg-zinc-200 disabled:opacity-0 transition-all disabled:scale-90 shadow-lg shadow-white/20"
                  >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                       <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 004.835 9h5.176a.75.75 0 010 1.5H4.835a1.5 1.5 0 00-1.142.836l-1.414 4.925a.75.75 0 00.826.95 28.89 28.89 0 0015.293-7.154.75.75 0 000-1.115A28.89 28.89 0 003.105 2.289z" />
@@ -625,7 +658,7 @@ const App: React.FC = () => {
              </div>
           </>
         ) : (
-          <div className="flex-grow flex flex-col bg-black/60 overflow-hidden relative glass-panel m-6 rounded-3xl border border-white/10">
+          <div className="flex-grow flex flex-col bg-black/60 overflow-hidden relative glass-panel m-3 md:m-6 rounded-2xl md:rounded-3xl border border-white/10">
             <div className="absolute top-4 right-6 z-10">
                <button 
                  onClick={() => navigator.clipboard.writeText(textLog)}

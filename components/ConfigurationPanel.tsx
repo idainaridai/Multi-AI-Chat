@@ -12,9 +12,10 @@ interface ConfigurationPanelProps {
   onReset: () => void;
   onDownloadLog: () => void;
   hasMessages: boolean;
+  hasApiKey: boolean;
 }
 
-const COLOR_PALETTE: AgentConfig['color'][] = ['cyan', 'pink', 'emerald', 'amber', 'violet'];
+const COLOR_PALETTE: AgentConfig['color'][] = ['cyan', 'pink', 'emerald', 'amber', 'violet', 'rose'];
 
 const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
   config,
@@ -25,6 +26,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
   onReset,
   onDownloadLog,
   hasMessages,
+  hasApiKey,
 }) => {
   const isRunning = status === ChatStatus.ACTIVE;
   const modelOptions = PROVIDER_MODEL_OPTIONS[config.provider] || [];
@@ -32,14 +34,14 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
 
   const handleAgentCountChange = (count: number) => {
     const currentCount = config.agents.length;
-    if (count < 2 || count > 5) return;
+    if (count < 2 || count > 6) return;
 
     if (count > currentCount) {
       // Add agents
       const newAgents = [...config.agents];
-      for (let i = currentCount; i < count; i++) {
-        newAgents.push({
-          id: crypto.randomUUID(),
+        for (let i = currentCount; i < count; i++) {
+          newAgents.push({
+          id: `${Date.now()}-${i}`,
           name: `エージェント ${i + 1}`,
           systemPrompt: 'あなたは個性的なAIアシスタントです。',
           color: COLOR_PALETTE[i % COLOR_PALETTE.length],
@@ -92,6 +94,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
       case 'emerald': return 'text-emerald-400';
       case 'amber': return 'text-amber-400';
       case 'violet': return 'text-violet-400';
+      case 'rose': return 'text-rose-400';
       default: return 'text-blue-400';
     }
   };
@@ -167,7 +170,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
             <input 
               type="range" 
               min="2" 
-              max="5" 
+              max="6" 
               disabled={isRunning}
               value={config.agents.length}
               onChange={(e) => handleAgentCountChange(parseInt(e.target.value))}
@@ -178,6 +181,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
               <span>3</span>
               <span>4</span>
               <span>5</span>
+              <span>6</span>
             </div>
           </div>
         </div>
@@ -272,7 +276,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
         {status === ChatStatus.IDLE || status === ChatStatus.COMPLETED || status === ChatStatus.ERROR ? (
           <button
             onClick={onStart}
-            disabled={!config.topic.trim() || !config.apiKey.trim()}
+            disabled={!config.topic.trim() || !hasApiKey}
             className="w-full bg-white text-black hover:bg-zinc-100 font-semibold py-3.5 px-4 rounded-full transition-all shadow-lg shadow-white/30 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 text-sm active:scale-95"
             title={!config.apiKey.trim() ? "API Key required" : "Start"}
           >

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Chat } from "@google/genai";
-import { AgentConfig, LLMProvider } from "../types";
+import { AgentConfig, LLMProvider, Message } from "../types";
 
 // Simple provider detection based on API key format
 export const detectProviderFromApiKey = (apiKey: string): LLMProvider => {
@@ -94,13 +94,15 @@ export const initializeChats = (
   agents: AgentConfig[],
   globalRules: string
 ) => {
-  if (!apiKey) {
+  const normalizedKey = apiKey.trim();
+
+  if (!normalizedKey) {
     throw new Error("API Key is required");
   }
 
-  activeProvider = detectProviderFromApiKey(apiKey);
+  activeProvider = detectProviderFromApiKey(normalizedKey);
   activeModel = modelName || getDefaultModelForProvider(activeProvider);
-  activeApiKey = apiKey;
+  activeApiKey = normalizedKey;
 
   // Clear previous sessions
   chatSessions = {};
@@ -196,4 +198,71 @@ export const generateResponse = async (
     console.error(`Error generating response for Agent ${agentId}:`, error);
     throw error;
   }
+};
+
+// Summarize the full meeting transcript once conversation ends
+export const generateMeetingSummary = async (
+  messages: Message[],
+  topic: string,
+  globalRules: string,
+  apiKey: string,
+  provider?: LLMProvider,
+  modelName?: string
+): Promise<string> => {
+  const key = apiKey?.trim();
+  if (!key) throw new Error("API Key is missing for summary generation.");
+
+  const summaryProvider = provider || detectProviderFromApiKey(key);
+  const summaryModel = modelName || activeModel || getDefaultModelForProvider(summaryProvider);
+
+  const transcript = messages
+    .filter((m) => m.senderId !== "SYSTEM")
+    .map((m) => {
+      const speaker = m.senderId === "USER" ? "User" : `Agent ${m.senderId}`;
+      return `${speaker}: ${m.text}`;
+    })
+    .join("\n");
+
+  const prompt = `以下の会話ログを読み、議事録を要約してください。\n- トピック: ${topic}\n- ルール: ${globalRules}\n- 形式: 1) 決定事項 2) 未決事項 3) 宿題・担当 4) 次の一歩 を日本語で簡潔に箇条書き。\n\n【会話ログ】\n${transcript}`;
+
+  if (summaryProvider === "gemini") {
+    const ai = new GoogleGenAI({ apiKey: key });
+    const result = await ai.models.generateContent({
+      model: summaryModel,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
+
+    return result.text || "要約を生成できませんでした。";
+  }
+
+  const endpoint =
+    PROVIDER_ENDPOINTS[summaryProvider] || PROVIDER_ENDPOINTS["openai-compatible"];
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      ...(summaryProvider === "openrouter"
+        ? { "HTTP-Referer": "gemini-dual-persona-chat", "X-Title": "Gemini Dual Persona Chat" }
+        : {}),
+    },
+    body: JSON.stringify({
+      model: summaryModel || getDefaultModelForProvider("openai"),
+      messages: [
+        { role: "system", content: "会議の要約者として、短い箇条書きで日本語の議事録を返してください。" },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Summary API error (${response.status}): ${text}`);
+  }
+
+  const data = await response.json();
+  const answer = data?.choices?.[0]?.message?.content?.trim();
+  return answer || "要約を生成できませんでした。";
 };

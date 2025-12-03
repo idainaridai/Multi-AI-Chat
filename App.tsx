@@ -3,8 +3,43 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ConfigurationPanel from './components/ConfigurationPanel';
 import ChatMessage from './components/ChatMessage';
 import { AppConfig, Message, ChatStatus } from './types';
-import { initializeChats, generateResponse, detectProviderFromApiKey, getDefaultModelForProvider, PROVIDER_MODEL_OPTIONS } from './services/geminiService';
+import { initializeChats, generateResponse, generateMeetingSummary, detectProviderFromApiKey, getDefaultModelForProvider, PROVIDER_MODEL_OPTIONS } from './services/geminiService';
 
+const safeRandomId = () => {
+  const cryptoObj = (typeof crypto !== 'undefined') ? crypto : (window as any)?.crypto;
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') return cryptoObj.randomUUID();
+  if (cryptoObj?.getRandomValues) {
+    const array = new Uint8Array(16);
+    cryptoObj.getRandomValues(array);
+    array[6] = (array[6] & 0x0f) | 0x40;
+    array[8] = (array[8] & 0x3f) | 0x80;
+    const hex = Array.from(array, b => b.toString(16).padStart(2, '0'));
+    return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex.slice(10).join('')}`;
+  }
+  return `id-${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+};
+
+const buildLocalSummary = (messages: Message[], topic: string) => {
+  const nonSystem = messages.filter(m => m.senderId !== 'SYSTEM');
+  const lastFew = nonSystem.slice(-6);
+  const bullets = lastFew.map(m => {
+    const name = m.senderId === 'USER' ? 'User' : m.senderId;
+    const text = m.text.replace(/\s+/g, ' ').slice(0, 120);
+    return `• ${name}: ${text}${m.text.length > 120 ? '…' : ''}`;
+  });
+
+  return [
+    `トピック: ${topic || '未設定'}`,
+    bullets.length ? '直近の発言ハイライト:\n' + bullets.join('\n') : '直近の発言がありません。'
+  ].join('\n');
+};
+
+const SUMMARY_AGENT = {
+  id: 'SUMMARY',
+  name: 'サマリーエージェント',
+  color: 'violet' as const,
+  avatarEmoji: '',
+};
 // Initial Configuration State
 const ENV_API_KEY =
   (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
@@ -26,16 +61,44 @@ const INITIAL_CONFIG: AppConfig = {
   agents: [
     {
       id: 'A',
-      name: 'Dr. Logic',
-      systemPrompt: 'あなたは非常に論理的で分析的な科学者です。データ、事実、科学的手法を重視します。回答は簡潔で構造的であり、感情には懐疑的です。',
-      color: 'cyan',
+      name: 'ドメインエキスパート（苦悩する当事者）',
+      systemPrompt: 'あなたは現場で苦労する当事者として、課題（Pain）を具体的なシーンや数字で突き付ける。机上の空論を嫌い、本当にお金を払ってでも解決したい「切実な悩み」だけを強調する。口癖は「現場ではそんな暇ないよ」「ここが一番面倒くさいんだ」。',
+      color: 'amber',
       avatarEmoji: '',
     },
     {
       id: 'B',
-      name: 'Poet Willow',
-      systemPrompt: 'あなたは感情豊かでロマンチックな詩人です。比喩を用いて話し、事実よりも感情を重視し、すべてのものに美しさを見出します。言葉遣いは華やかで表現力豊かです。',
+      name: 'テック・リアリスト（技術の現実主義者）',
+      systemPrompt: 'あなたは既存の技術やNoCode・APIを駆使し、最小の労力で最大の効果を出す方法を即答する現実主義者。「それAPI叩けば一瞬です」「その機能は開発コストに見合わない」といった口癖で過剰開発を止め、実現手順を具体的に提示する。',
+      color: 'emerald',
+      avatarEmoji: '',
+    },
+    {
+      id: 'C',
+      name: 'グロース・マーケター（売り方の戦略家）',
+      systemPrompt: 'あなたは「売れること」を前提に、価格設定・差別化ポイント・集客チャネルを最優先で設計する。「で、いくらなら買う？」「どうやって集客するの？」と問い続け、市場性（Viability）を担保する提案を行う。',
+      color: 'violet',
+      avatarEmoji: '',
+    },
+    {
+      id: 'D',
+      name: 'UXデザイナー（体験の設計者）',
+      systemPrompt: 'あなたは忙しい個人事業主が説明書なしで使えるシンプルさを守り抜く。入力項目を極力減らし、離脱ポイントを潰すことに執着する。「説明書なしで使える？」「入力項目が多すぎて離脱するよ」を合言葉に、最短の動線と摩擦を指摘する。',
+      color: 'cyan',
+      avatarEmoji: '',
+    },
+    {
+      id: 'E',
+      name: 'プロダクトマネージャー（冷徹な優先順位係）',
+      systemPrompt: 'あなたはスコープ管理と意思決定を担い、MVPで「何をしないか」を決める。「それは今回のMVPでは捨てよう」「リリース日は死守ね」と言い切り、最小機能での着地とリソース配分を指示する。',
       color: 'pink',
+      avatarEmoji: '',
+    },
+    {
+      id: 'F',
+      name: 'デビルズ・アドボケイト（批判役）',
+      systemPrompt: 'あなたは敢えて批判し、リスクを炙り出す役割。法務・競合・依存リスクに敏感で、「大手無料ツールが参入したら即死じゃない？」「法的にグレーだよ」と水を差し、致命的な欠陥を事前に洗い出す。',
+      color: 'rose',
       avatarEmoji: '',
     }
   ],
@@ -52,6 +115,14 @@ const App: React.FC = () => {
   const [currentSpeakerId, setCurrentSpeakerId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chat' | 'text'>('chat');
   const [userInput, setUserInput] = useState('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const hasSummarizedRef = useRef(false);
+
+  const getEffectiveApiKey = useCallback(() => {
+    const provided = config.apiKey?.trim();
+    const fallback = ENV_API_KEY?.trim();
+    return provided || fallback || '';
+  }, [config.apiKey]);
   
   // Ref for scrolling to bottom
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -71,7 +142,7 @@ const App: React.FC = () => {
 
   const addMessage = useCallback((senderId: string, text: string) => {
     const newMessage: Message = {
-      id: crypto.randomUUID(),
+      id: safeRandomId(),
       senderId,
       text,
       timestamp: Date.now(),
@@ -81,26 +152,28 @@ const App: React.FC = () => {
 
   const handleStart = async () => {
     if (!config.topic.trim()) return;
-    if (!config.apiKey.trim()) {
-      if (ENV_API_KEY) {
-        const provider = detectProviderFromApiKey(ENV_API_KEY);
-        const model =
-          PROVIDER_MODEL_OPTIONS[provider]?.[0]?.id || getDefaultModelForProvider(provider);
-        setConfig((prev) => ({ ...prev, apiKey: ENV_API_KEY, provider, model }));
-      } else {
-        addMessage('SYSTEM', 'API Key is missing. Please check the configuration.');
-        return;
-      }
+
+    const normalizedApiKey = getEffectiveApiKey();
+    if (!normalizedApiKey) {
+      addMessage('SYSTEM', 'API Key is missing. Please check the configuration.');
+      return;
     }
+
+    // Normalize provider/model based on the final API key we will use
+    const provider = detectProviderFromApiKey(normalizedApiKey);
+    const model = PROVIDER_MODEL_OPTIONS[provider]?.[0]?.id || getDefaultModelForProvider(provider);
+    setConfig((prev) => ({ ...prev, apiKey: normalizedApiKey, provider, model }));
     
     // Reset state
     setMessages([]);
     setTurnCount(0);
     setStatus(ChatStatus.ACTIVE);
+    hasSummarizedRef.current = false;
+    setIsSummarizing(false);
     
     // Initialize chats with current prompts and global rules
     try {
-      initializeChats(config.apiKey, config.model, config.agents, config.globalRules);
+      initializeChats(normalizedApiKey, model, config.agents, config.globalRules);
     } catch (e) {
       console.error(e);
       addMessage('SYSTEM', `AIエージェントの初期化に失敗しました: ${(e as Error)?.message || 'APIキーを確認してください。'}`);
@@ -117,8 +190,8 @@ const App: React.FC = () => {
   };
 
   const handleStop = () => {
-    setStatus(ChatStatus.PAUSED);
-    addMessage('SYSTEM', 'ユーザーによって会話が停止されました。');
+    setStatus(ChatStatus.COMPLETED);
+    addMessage('SYSTEM', 'ユーザーによって会話が終了しました。');
     setCurrentSpeakerId(null);
   };
 
@@ -127,6 +200,8 @@ const App: React.FC = () => {
     setMessages([]);
     setTurnCount(0);
     setCurrentSpeakerId(null);
+    hasSummarizedRef.current = false;
+    setIsSummarizing(false);
   };
 
   const handleUserSubmit = (e: React.FormEvent) => {
@@ -143,21 +218,25 @@ const App: React.FC = () => {
     // If we haven't initialized chats yet, we should.
     if (status === ChatStatus.IDLE || status === ChatStatus.ERROR) {
        // Validate API Key before implicit start
-       if (!config.apiKey.trim()) {
+       const normalizedApiKey = getEffectiveApiKey();
+       if (!normalizedApiKey) {
           addMessage('SYSTEM', 'Please enter an API Key to start.');
           return;
        }
-       
+       const provider = detectProviderFromApiKey(normalizedApiKey);
+       const model = config.model || PROVIDER_MODEL_OPTIONS[provider]?.[0]?.id || getDefaultModelForProvider(provider);
+
        // Initialize implicitly if needed
        try {
-         initializeChats(config.apiKey, config.model, config.agents, config.globalRules);
+         initializeChats(normalizedApiKey, model, config.agents, config.globalRules);
+         setConfig(prev => ({ ...prev, apiKey: normalizedApiKey, provider, model }));
          setStatus(ChatStatus.ACTIVE);
          // Set first speaker if none
          if (!currentSpeakerId && config.agents.length > 0) {
            setCurrentSpeakerId(config.agents[0].id);
          }
        } catch (e) {
-         addMessage('SYSTEM', 'Failed to initialize chat. Check API Key.');
+         addMessage('SYSTEM', `Failed to initialize chat. ${(e as Error)?.message || 'Check API Key.'}`);
          return;
        }
     } else if (status === ChatStatus.PAUSED || status === ChatStatus.COMPLETED) {
@@ -179,6 +258,7 @@ const App: React.FC = () => {
       emerald: { bg: 'background: linear-gradient(135deg, #059669, #0f766e); color: white;' },
       amber: { bg: 'background: linear-gradient(135deg, #f97316, #d97706); color: white;' },
       violet: { bg: 'background: linear-gradient(135deg, #7c3aed, #4338ca); color: white;' },
+      rose: { bg: 'background: linear-gradient(135deg, #fb7185, #ef4444); color: white;' },
     };
 
     const timestamp = new Date().toLocaleString();
@@ -247,7 +327,9 @@ const App: React.FC = () => {
       }
 
       // Agents
-      const agent = config.agents.find(a => a.id === msg.senderId);
+      const agent = msg.senderId === SUMMARY_AGENT.id
+        ? SUMMARY_AGENT
+        : config.agents.find(a => a.id === msg.senderId);
       const agentIndex = config.agents.findIndex(a => a.id === msg.senderId);
       const isLeftAligned = agentIndex === -1 ? true : agentIndex % 2 === 0;
       
@@ -362,10 +444,43 @@ const App: React.FC = () => {
 
   const currentSpeakerAgent = config.agents.find(a => a.id === currentSpeakerId);
 
+  // Generate meeting minutes once conversation ends
+  useEffect(() => {
+    if (status !== ChatStatus.COMPLETED) return;
+    if (hasSummarizedRef.current) return;
+    if (messages.length === 0) return;
+
+    hasSummarizedRef.current = true;
+    setIsSummarizing(true);
+    addMessage('SYSTEM', '議事録をまとめています...');
+
+    const summarize = async () => {
+      try {
+        const summary = await generateMeetingSummary(
+          messages,
+          config.topic,
+          config.globalRules,
+          getEffectiveApiKey(),
+          config.provider,
+          config.model
+        );
+        addMessage(SUMMARY_AGENT.id, summary);
+      } catch (e) {
+        const fallback = buildLocalSummary(messages, config.topic);
+        addMessage(SUMMARY_AGENT.id, `要約生成に失敗しました: ${(e as Error)?.message || '理由不明のエラー'}\n\nローカル要約:\n${fallback}`);
+      } finally {
+        setIsSummarizing(false);
+      }
+    };
+
+    summarize();
+  }, [status, messages, config.topic, config.globalRules, addMessage]);
+
   const textLog = messages.map(msg => {
     let name = "Unknown";
     if (msg.senderId === 'USER') name = "User";
     else if (msg.senderId === 'SYSTEM') name = "System";
+    else if (msg.senderId === SUMMARY_AGENT.id) name = SUMMARY_AGENT.name;
     else {
       const agent = config.agents.find(a => a.id === msg.senderId);
       name = agent ? agent.name : "Unknown";
@@ -390,6 +505,7 @@ const App: React.FC = () => {
         onReset={handleReset}
         onDownloadLog={handleDownloadLog}
         hasMessages={messages.length > 0}
+        hasApiKey={!!getEffectiveApiKey()}
       />
 
       {/* Main Chat Area */}
@@ -450,9 +566,11 @@ const App: React.FC = () => {
               
               <div className="max-w-4xl mx-auto w-full pb-16">
                 {messages.map((msg) => {
-                  const agent = config.agents.find(a => a.id === msg.senderId);
-                  const agentIndex = config.agents.findIndex(a => a.id === msg.senderId);
-                  const isLeftAligned = agentIndex === -1 ? true : agentIndex % 2 === 0;
+      const agent = msg.senderId === SUMMARY_AGENT.id
+        ? SUMMARY_AGENT
+        : config.agents.find(a => a.id === msg.senderId);
+      const agentIndex = config.agents.findIndex(a => a.id === msg.senderId);
+      const isLeftAligned = agentIndex === -1 ? true : agentIndex % 2 === 0;
 
                   return (
                     <ChatMessage
@@ -469,6 +587,14 @@ const App: React.FC = () => {
                   <div className={`flex w-full mt-4 ${config.agents.findIndex(a => a.id === currentSpeakerId) % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
                     <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-zinc-200 bg-white/10 border border-white/10 backdrop-blur-sm animate-pulse shadow-lg shadow-black/40">
                         <span>Thinking...</span>
+                    </div>
+                  </div>
+                )}
+
+                {isSummarizing && (
+                  <div className="flex w-full mt-4 justify-center">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-zinc-200 bg-white/10 border border-white/10 backdrop-blur-sm animate-pulse shadow-lg shadow-black/40">
+                        <span>議事録生成中...</span>
                     </div>
                   </div>
                 )}

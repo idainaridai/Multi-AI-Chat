@@ -3,7 +3,7 @@ export interface AgentConfig {
   id: string;
   name: string;
   systemPrompt: string;
-  color: 'cyan' | 'pink' | 'emerald' | 'amber' | 'violet';
+  color: 'cyan' | 'pink' | 'emerald' | 'amber' | 'violet' | 'rose';
   avatarEmoji: string;
 }
 
